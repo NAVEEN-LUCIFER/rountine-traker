@@ -54,6 +54,20 @@ export function SyncProvider({ children }) {
       const { error } = await supabase.auth.signUp({ email, password })
       if (error) throw error
     },
+    async signInWithGoogle() {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      })
+      if (error) throw error
+    },
+    async signInWithMagicLink(email) {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin },
+      })
+      if (error) throw error
+    },
     async signOut() {
       const uid = session?.user?.id
       stopSync()
