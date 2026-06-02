@@ -148,16 +148,6 @@ export default function Today({ goReview }) {
         <Learn name="Reading" field="learnReading" day={day} update={update} />
       </section>
 
-      {/* CARE + RELATIONSHIPS */}
-      <section className="card">
-        <h2>Care &amp; connection</h2>
-        <div className="toggle-grid">
-          <Toggle label="Called loved ones" on={day.calledLovedOnes} onTap={() => update({ calledLovedOnes: !day.calledLovedOnes })} />
-          <Toggle label="Skin/hair — AM" on={day.skincareMorning} onTap={() => update({ skincareMorning: !day.skincareMorning })} />
-          <Toggle label="Skin/hair — PM" on={day.skincareNight} onTap={() => update({ skincareNight: !day.skincareNight })} />
-        </div>
-      </section>
-
       {/* DOOM SCROLLING */}
       <section className="card">
         <h2>Doom scrolling</h2>
