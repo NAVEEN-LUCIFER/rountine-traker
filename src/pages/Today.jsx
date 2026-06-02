@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useDay } from '../lib/useDay.js'
 import { routineFor } from '../db/routine.js'
-import { dayCompletion } from '../lib/stats.js'
+import { dayCompletion, workDoneCount } from '../lib/stats.js'
+import { carryOverWork, newWorkId } from '../db/db.js'
 import {
   todayKey, addDays, prettyDate, relativeLabel, isSunday,
   sleepMinutes, fmtDuration,
@@ -18,6 +19,11 @@ export default function Today({ goReview }) {
   const pct = dayCompletion(day)
   const sleep = sleepMinutes(day.bedtime, day.wakeTime)
   const isToday = dateKey === todayKey()
+
+  // Roll unfinished work tasks forward into today, once.
+  useEffect(() => {
+    if (dateKey === todayKey()) carryOverWork(dateKey)
+  }, [dateKey])
 
   return (
     <>
@@ -82,6 +88,9 @@ export default function Today({ goReview }) {
           )
         })}
       </section>
+
+      {/* WORK TODAY */}
+      <WorkToday day={day} update={update} />
 
       {/* ENERGY */}
       <section className="card">
@@ -214,11 +223,59 @@ function Learn({ name, field, day, update }) {
   )
 }
 
-function Toggle({ label, on, onTap }) {
+function WorkToday({ day, update }) {
+  const [text, setText] = useState('')
+  const work = day.work || []
+  const done = work.filter((t) => t.done).length
+
+  function add() {
+    const v = text.trim()
+    if (!v) return
+    update({ work: [...work, { id: newWorkId(), text: v, done: false }] })
+    setText('')
+  }
+  const toggle = (id) => update({ work: work.map((t) => (t.id === id ? { ...t, done: !t.done } : t)) })
+  const remove = (id) => update({ work: work.filter((t) => t.id !== id) })
+
+  // Open tasks first, completed sink to the bottom.
+  const sorted = [...work].sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0))
+
   return (
-    <div className={`toggle ${on ? 'on' : ''}`} onClick={onTap}>
-      <span className="dot" />
-      <span>{label}</span>
-    </div>
+    <section className="card">
+      <div className="row-between" style={{ marginBottom: 10 }}>
+        <h2 style={{ margin: 0 }}>Work today</h2>
+        <span className="stat-sub">{work.length ? `${done} of ${work.length} done` : 'celebrate what you ship'}</span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: work.length ? 12 : 0 }}>
+        <input
+          type="text"
+          placeholder="Add a work task…"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') add() }}
+        />
+        <button
+          className="chip"
+          style={{ padding: '0 16px', background: 'var(--accent)', color: '#08231a', fontWeight: 700, border: 'none' }}
+          onClick={add}
+        >Add</button>
+      </div>
+
+      {sorted.map((t) => (
+        <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 2px', borderTop: '1px solid var(--line)' }}>
+          <span className={`check ${t.done ? 'on' : ''}`} onClick={() => toggle(t.id)} style={{ cursor: 'pointer' }} />
+          <span
+            onClick={() => toggle(t.id)}
+            style={{ flex: 1, cursor: 'pointer', color: t.done ? 'var(--muted)' : 'var(--text)', textDecoration: t.done ? 'line-through' : 'none', textDecorationColor: 'var(--line)' }}
+          >{t.text}</span>
+          <button
+            onClick={() => remove(t.id)}
+            aria-label="Remove task"
+            style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
+          >×</button>
+        </div>
+      ))}
+    </section>
   )
 }

@@ -1,13 +1,16 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getRange, getDay } from '../db/db.js'
-import { todayKey, lastNDays, weekKeys, addDays, sleepMinutes, fmtDuration, prettyDate } from '../lib/date.js'
-import { summarize, byKey, dayEnergy, dayCompletion } from '../lib/stats.js'
+import { todayKey, lastNDays, weekKeys, monthRange, addDays, sleepMinutes, fmtDuration, prettyDate } from '../lib/date.js'
+import { summarize, byKey, dayEnergy, dayCompletion, workStats, workDoneCount } from '../lib/stats.js'
 import SyncBadge from '../components/SyncBadge.jsx'
 
 export default function Dashboard() {
   const t = todayKey()
   const rows = useLiveQuery(() => getRange(addDays(t, -29), t), [t], [])
   const today = useLiveQuery(() => getDay(t), [t], null)
+
+  const [mStart, mEnd] = monthRange(t)
+  const monthRows = useLiveQuery(() => getRange(mStart, mEnd), [t], [])
 
   const byk = byKey(rows || [])
   const last7 = lastNDays(t, 7)
@@ -17,6 +20,9 @@ export default function Dashboard() {
   const week7 = summarize(last7.map((k) => byk[k]).filter(Boolean))
   const thisWeek = summarize(week.map((k) => byk[k]).filter(Boolean))
   const lastNight = today ? sleepMinutes(today.bedtime, today.wakeTime) : null
+
+  const workWeek = workStats(week.map((k) => byk[k]).filter(Boolean))
+  const workMonth = workStats(monthRows || [])
 
   return (
     <>
@@ -39,6 +45,26 @@ export default function Dashboard() {
             <div className="stat-sub">{today && today.mvd ? 'Minimum viable day' : 'Routine complete'}</div>
             <div className="stat-sub" style={{ marginTop: 4 }}>{prettyDate(t)}</div>
           </div>
+        </div>
+      </section>
+
+      {/* Work shipped */}
+      <section className="card">
+        <h2>Work shipped</h2>
+        <div className="row-between">
+          <div>
+            <div className="stat-num">{workWeek.done}</div>
+            <div className="stat-sub">tasks this week</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div className="stat-num">{workMonth.done}</div>
+            <div className="stat-sub">this month</div>
+          </div>
+        </div>
+        <WorkBars days={last7} byk={byk} />
+        <div className="stat-sub" style={{ marginTop: 8 }}>
+          {workMonth.activeDays} active days this month
+          {workWeek.bestDay.date ? ` · best day ${workWeek.bestDay.count}` : ''}
         </div>
       </section>
 
@@ -98,6 +124,26 @@ export default function Dashboard() {
 
       <div style={{ height: 8 }} />
     </>
+  )
+}
+
+function WorkBars({ days, byk }) {
+  const counts = days.map((k) => workDoneCount(byk[k] || {}))
+  const max = Math.max(3, ...counts)
+  return (
+    <div className="bars" style={{ marginTop: 12 }}>
+      {days.map((k, i) => {
+        const c = counts[i]
+        return (
+          <div className="bar-col" key={k}>
+            <div style={{ width: '100%', maxWidth: 26, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}>
+              {c > 0 && <div className="bar" style={{ height: `${(c / max) * 100}%` }} />}
+            </div>
+            <span className="bar-label">{['S', 'M', 'T', 'W', 'T', 'F', 'S'][new Date(`${k}T00:00:00`).getDay()]}</span>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 

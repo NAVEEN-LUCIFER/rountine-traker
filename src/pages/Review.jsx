@@ -1,20 +1,24 @@
 import { useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getRange, exportAll, importAll } from '../db/db.js'
-import { todayKey, weekKeys, prettyDate } from '../lib/date.js'
+import { todayKey, weekKeys, monthRange, monthLabel, prettyDate } from '../lib/date.js'
 import { weeklyReview } from '../lib/weeklyReview.js'
+import { workStats } from '../lib/stats.js'
 import { useSync } from '../lib/SyncContext.jsx'
 import SyncBadge from '../components/SyncBadge.jsx'
 
 export default function Review() {
   const t = todayKey()
   const week = weekKeys(t)
+  const [mStart, mEnd] = monthRange(t)
   const fileRef = useRef(null)
   const [msg, setMsg] = useState('')
   const { syncEnabled, user, signOut } = useSync()
 
   const rows = useLiveQuery(() => getRange(week[0], week[6]), [t], null)
+  const monthRows = useLiveQuery(() => getRange(mStart, mEnd), [t], [])
   const review = rows ? weeklyReview(rows) : null
+  const workMonth = workStats(monthRows || [])
 
   async function doExport() {
     const json = await exportAll()
@@ -60,7 +64,7 @@ export default function Review() {
               <div className="n"><b>{review.numbers.gym}</b><small>gym</small></div>
               <div className="n"><b>{review.numbers.sleep}</b><small>avg sleep</small></div>
               <div className="n"><b>{review.numbers.learning}</b><small>learning</small></div>
-              <div className="n"><b>{review.numbers.called}</b><small>called</small></div>
+              <div className="n"><b>{review.numbers.work}</b><small>work shipped</small></div>
               <div className="n"><b>{review.numbers.doom}</b><small>doom</small></div>
               <div className="n"><b>{review.numbers.completionDays}</b><small>days logged</small></div>
             </div>
@@ -85,6 +89,25 @@ export default function Review() {
               <div className="t">Recommended focus</div>
               <div className="b">{review.focus}</div>
             </div>
+          </section>
+
+          <section className="card">
+            <h2>{monthLabel(t)} so far</h2>
+            <div className="row-between">
+              <div>
+                <div className="stat-num">{workMonth.done}</div>
+                <div className="stat-sub">work tasks shipped this month</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div className="stat-num">{workMonth.activeDays}</div>
+                <div className="stat-sub">active days</div>
+              </div>
+            </div>
+            {workMonth.bestDay.date && (
+              <div className="stat-sub" style={{ marginTop: 10 }}>
+                Best day: {prettyDate(workMonth.bestDay.date)} — {workMonth.bestDay.count} shipped.
+              </div>
+            )}
           </section>
 
           <section className="card">

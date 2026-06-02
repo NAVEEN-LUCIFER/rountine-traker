@@ -1,4 +1,5 @@
 import Dexie from 'dexie'
+import { addDays } from '../lib/date.js'
 
 // Single-user local cache. One row per day keyed by "YYYY-MM-DD".
 // When Supabase sync is on, this is the offline-first cache; the `dirty` index
@@ -38,6 +39,8 @@ export function emptyDay(date) {
     doomTrigger: null,
     doomReplacement: null,
     note: null,
+    work: [],           // [{ id, text, done }] — daily SDE work to-dos
+    workCarried: false, // unfinished tasks rolled in from a prior day once
     updatedAt: Date.now(),
     dirty: 0,
   }
@@ -61,6 +64,43 @@ export async function patchDay(date, patch) {
 
 export async function getRange(startDate, endDate) {
   return db.days.where('date').between(startDate, endDate, true, true).toArray()
+}
+
+// ---- Work to-do helpers ----
+
+export const newWorkId = () =>
+  Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
+
+// Guards against double-running (e.g. React StrictMode double effects).
+const carrying = new Set()
+
+// Roll unfinished work tasks from the most recent prior day (within 14 days)
+// into `date`, once. Done tasks stay on the day they were completed; only
+// open tasks follow you forward. Idempotent via the `workCarried` flag.
+export async function carryOverWork(date) {
+  if (carrying.has(date)) return
+  carrying.add(date)
+  try {
+    const today = await getDay(date)
+    if (today.workCarried) return
+
+    let src = null
+    let cursor = date
+    for (let i = 0; i < 14; i++) {
+      cursor = addDays(cursor, -1)
+      const d = await db.days.get(cursor)
+      if (d && Array.isArray(d.work) && d.work.length) { src = d; break }
+    }
+    const carried = src
+      ? src.work.filter((t) => !t.done).map((t) => ({ id: newWorkId(), text: t.text, done: false }))
+      : []
+
+    const merged = [...carried, ...(today.work || [])]
+    await db.days.put({ ...today, work: merged, workCarried: true, updatedAt: Date.now(), dirty: 1 })
+    notifyLocalChange()
+  } finally {
+    carrying.delete(date)
+  }
 }
 
 // ---- Sync helpers (used by lib/sync.js) ----

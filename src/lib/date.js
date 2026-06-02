@@ -63,6 +63,19 @@ export function weekKeys(key) {
   return lastNDays(addDays(monday, 6), 7)
 }
 
+// [startKey, endKey] spanning the calendar month that `key` falls in.
+export function monthRange(key) {
+  const d = fromKey(key)
+  const start = new Date(d.getFullYear(), d.getMonth(), 1)
+  const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+  return [toKey(start), toKey(end)]
+}
+
+export function monthLabel(key) {
+  const d = fromKey(key)
+  return ['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()]
+}
+
 // Sleep duration in minutes given bedtime + wakeTime "HH:MM".
 // Assumes bedtime is the night before wake (handles crossing midnight).
 export function sleepMinutes(bedtime, wakeTime) {

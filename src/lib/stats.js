@@ -48,6 +48,29 @@ function sum(rows, key) {
   return rows.reduce((a, d) => a + (d[key] || 0), 0)
 }
 
+// ---- Work to-do stats ----
+
+export function workDoneCount(day) {
+  return (day?.work || []).filter((t) => t.done).length
+}
+
+// Aggregate completed work tasks across a set of day rows.
+export function workStats(days) {
+  const rows = (Array.isArray(days) ? days : Object.values(days)).filter(Boolean)
+  let done = 0
+  let activeDays = 0 // days where at least one task was completed
+  let bestDay = { date: null, count: 0 }
+  for (const d of rows) {
+    const c = workDoneCount(d)
+    done += c
+    if (c > 0) {
+      activeDays++
+      if (c > bestDay.count) bestDay = { date: d.date, count: c }
+    }
+  }
+  return { done, activeDays, bestDay }
+}
+
 // Average energy across the 3 slots for a day (ignores nulls). Returns null if none.
 export function dayEnergy(day) {
   const vals = [day.energyMorning, day.energyAfternoon, day.energyNight].filter((v) => v != null)

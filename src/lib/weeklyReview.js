@@ -1,5 +1,5 @@
 import { sleepMinutes, fmtDuration } from './date.js'
-import { summarize, dayEnergy, totalLearning } from './stats.js'
+import { summarize, dayEnergy, totalLearning, workStats } from './stats.js'
 
 // Generate a calm, blameless weekly review from a week's worth of day rows.
 // Pure heuristics, fully offline. Returns a structured object the UI renders.
@@ -49,6 +49,12 @@ export function weeklyReview(weekRows) {
     else slipped.push(`Doom scrolling ~${perDay} min/day.`)
   }
 
+  // --- Work shipped ---
+  const work = workStats(rows)
+  if (work.done > 0) {
+    went.push(`Shipped ${work.done} work task${work.done === 1 ? '' : 's'} across ${work.activeDays} day${work.activeDays === 1 ? '' : 's'}.`)
+  }
+
   // --- Main reason for misses (most common skip reason / doom trigger) ---
   const reason = topReason(rows)
 
@@ -67,7 +73,7 @@ export function weeklyReview(weekRows) {
       sleep: s.avgSleep != null ? fmtDuration(s.avgSleep) : '—',
       learning: `${L.total}m`,
       doom: `${s.doomTotal}m`,
-      called: `${s.calledDays}/7`,
+      work: `${work.done}`,
     },
     went,
     slipped,
