@@ -4,3 +4,10 @@
 
 [build.environment]
   SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,VITE_SUPABASE_URL"
+
+# SPA fallback: serve index.html for any path (e.g. /login) so client-side
+# routing works in production instead of 404-ing.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
